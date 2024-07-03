@@ -5,10 +5,65 @@ import (
 	"strings"
 
 	"github.com/brancobruyneel/lens/mqtt"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
+
+// keyMap defines a set of keybindings. To work for help it must satisfy
+// key.Map. It could also very easily be a map[string]key.Binding.
+type keyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Left  key.Binding
+	Right key.Binding
+	Help  key.Binding
+	Quit  key.Binding
+}
+
+// ShortHelp returns keybindings to be shown in the mini help view. It's part
+// of the key.Map interface.
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+// FullHelp returns keybindings for the expanded help view. It's part of the
+// key.Map interface.
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Left, k.Right}, // first column
+		{k.Help, k.Quit},                // second column
+	}
+}
+
+var keys = keyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "move up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "move down"),
+	),
+	Left: key.NewBinding(
+		key.WithKeys("left", "h"),
+		key.WithHelp("←/h", "move left"),
+	),
+	Right: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("→/l", "move right"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+}
 
 type TopicNode struct {
 	Name     string
@@ -17,6 +72,8 @@ type TopicNode struct {
 }
 
 type Model struct {
+	keys         keyMap
+	help         help.Model
 	root         *TopicNode
 	client       mqtt.Client
 	sub          chan paho.Message
@@ -31,8 +88,10 @@ func NewModel(client mqtt.Client, serverURL string) *Model {
 			Messages: []string{},
 		},
 		client:       client,
+		keys:         keys,
 		sub:          make(chan paho.Message),
 		selectedPath: []string{"dx-climate-control", "reported"}, // Hardcoded selection
+		help:         help.New(),
 	}
 }
 
@@ -106,7 +165,11 @@ func (m Model) View() string {
 	left := lipgloss.NewStyle().Width(50).Render(leftColumn.String())
 	right := lipgloss.NewStyle().Width(50).Render(rightColumn.String())
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		lipgloss.JoinHorizontal(lipgloss.Top, left, right),
+		m.help.View(m.keys),
+	)
 }
 
 func (m Model) viewNode(builder *strings.Builder, node *TopicNode, depth int, path []string) {
