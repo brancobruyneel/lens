@@ -10,44 +10,42 @@ import (
 )
 
 type Model struct {
-	topicTree    tea.Model
-	history      tea.Model
-	client       *mqtt.Client
-	messages     chan paho.Message
-	selectedPath []string
+	topicTree tea.Model
+	history   tea.Model
+	client    *mqtt.Client
+	msgs      chan paho.Message
 }
 
 func NewModel(c *mqtt.Client, mqttHost string) *Model {
 	return &Model{
-		topicTree:    topics.New(mqttHost),
-		history:      history.New(),
-		client:       c,
-		messages:     make(chan paho.Message),
-		selectedPath: make([]string, 0),
+		topicTree: topics.New(mqttHost),
+		history:   history.New(),
+		client:    c,
+		msgs:      make(chan paho.Message),
 	}
 }
 
-func subscribe(c *mqtt.Client, messages chan paho.Message) tea.Cmd {
+func (m Model) subscribe() tea.Cmd {
 	return func() tea.Msg {
 		topic := "#"
-		_ = c.Subscribe(topic, func(_ paho.Client, msg paho.Message) {
-			messages <- msg
+		_ = m.client.Subscribe(topic, func(_ paho.Client, msg paho.Message) {
+			m.msgs <- msg
 		})
 		return nil
 	}
 }
 
-func waitForMsg(messages chan paho.Message) tea.Cmd {
+func (m Model) waitForMsg() tea.Cmd {
 	return func() tea.Msg {
-		msg := <-messages
+		msg := <-m.msgs
 		return msg
 	}
 }
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		subscribe(m.client, m.messages),
-		waitForMsg(m.messages),
+		m.subscribe(),
+		m.waitForMsg(),
 	)
 }
 
@@ -59,15 +57,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case paho.Message:
-		m.topicTree, _ = m.topicTree.Update(msg)
-		m.history, _ = m.history.Update(msg)
-		return m, waitForMsg(m.messages)
+		return m.propagate(msg), m.waitForMsg()
 	}
 
-	m.topicTree, _ = m.topicTree.Update(msg)
-	m.history, _ = m.history.Update(msg)
-
-	return m, nil
+	return m.propagate(msg), nil
 }
 
 // Propagate message to child models.
