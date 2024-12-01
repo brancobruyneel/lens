@@ -4,16 +4,11 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-type Client interface {
-	Subscribe(topic string, callback paho.MessageHandler) error
-	Disconnect()
-}
-
-type client struct {
+type Client struct {
 	client paho.Client
 }
 
-func New(broker, clientID string) (Client, error) {
+func New(broker, clientID string) (*Client, error) {
 	opts := paho.NewClientOptions().AddBroker(broker).SetClientID(clientID)
 	c := paho.NewClient(opts)
 
@@ -21,16 +16,16 @@ func New(broker, clientID string) (Client, error) {
 		return nil, token.Error()
 	}
 
-	return &client{client: c}, nil
+	return &Client{client: c}, nil
 }
 
-func (c *client) Subscribe(topic string, callback paho.MessageHandler) error {
+func (c *Client) Subscribe(topic string, callback paho.MessageHandler) error {
 	if token := c.client.Subscribe(topic, 0, callback); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
 	return nil
 }
 
-func (c *client) Disconnect() {
+func (c *Client) Disconnect() {
 	c.client.Disconnect(250)
 }
