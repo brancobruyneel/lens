@@ -10,10 +10,14 @@ import (
 )
 
 type Model struct {
+	width  int
+	height int
+
 	topicTree tea.Model
 	history   tea.Model
-	client    *mqtt.Client
-	msgs      chan paho.Message
+
+	client *mqtt.Client
+	msgs   chan paho.Message
 }
 
 func NewModel(c *mqtt.Client, mqttHost string) *Model {
@@ -51,6 +55,9 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -74,7 +81,7 @@ func (m Model) propagate(msg tea.Msg) tea.Model {
 func (m Model) View() string {
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		m.topicTree.View(),
-		m.history.View(),
+		lipgloss.NewStyle().Height(m.height).Width(60).Padding(1).Render(m.topicTree.View()),
+		lipgloss.NewStyle().Height(m.height).Padding(1).Render(m.history.View()),
 	)
 }

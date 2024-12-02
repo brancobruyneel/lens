@@ -7,15 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss/tree"
 )
 
-type styles struct {
-	base,
-	block,
-	enumerator,
-	node,
-	toggle,
-	leaf lipgloss.Style
-}
-
 func defaultStyles() styles {
 	var s styles
 	s.base = lipgloss.NewStyle().
@@ -33,7 +24,19 @@ func defaultStyles() styles {
 		Foreground(lipgloss.Color("207")).
 		PaddingRight(1)
 	s.leaf = s.base
+	s.selected = s.base.
+		Foreground(lipgloss.Color("82")) // Define the selected style with a different color
 	return s
+}
+
+type styles struct {
+	base       lipgloss.Style
+	block      lipgloss.Style
+	enumerator lipgloss.Style
+	node       lipgloss.Style
+	toggle     lipgloss.Style
+	leaf       lipgloss.Style
+	selected   lipgloss.Style // Add the selected style
 }
 
 type Node struct {
@@ -42,17 +45,26 @@ type Node struct {
 	Children []*Node
 	Styles   styles
 	Open     bool
+	Selected bool
 }
 
 func (t *Node) String() string {
-	if t.Root {
-		return t.Styles.node.Render(t.Name)
+	var nodeStyle lipgloss.Style
+	if t.Selected {
+		nodeStyle = t.Styles.selected
+	} else {
+		nodeStyle = t.Styles.node
+	}
+
+	if t.Root || len(t.Children) == 0 {
+		return nodeStyle.Render(t.Name)
 	}
 
 	if t.Open {
-		return t.Styles.toggle.Render("▼") + t.Styles.node.Render(t.Name)
+		return t.Styles.toggle.Render("▼") + nodeStyle.Render(t.Name)
 	}
-	return t.Styles.toggle.Render("▶") + t.Styles.node.Render(t.Name)
+
+	return t.Styles.toggle.Render("▶") + nodeStyle.Render(t.Name)
 }
 
 func (t *Node) Toggle() {
@@ -100,7 +112,7 @@ func (t *Tree) Render() *tree.Tree {
 		tr := tree.Root(n)
 		for _, child := range n.Children {
 			childTree := convert(child)
-			if !child.Open {
+			if !n.Open {
 				childTree.Hide(true)
 			}
 			tr = tr.Child(childTree)

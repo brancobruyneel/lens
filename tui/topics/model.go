@@ -1,8 +1,6 @@
 package topics
 
 import (
-	"log/slog"
-
 	tea "github.com/charmbracelet/bubbletea"
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
@@ -25,38 +23,54 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *Model) moveUp() {
+func (m *Model) moveUp() tea.Model {
 	if m.cursor == m.topics.Root {
-		return
+		return m
 	}
+
 	parent := m.findParent(m.topics.Root, m.cursor)
 	if parent != nil {
 		for i, child := range parent.Children {
-			if child == m.cursor && i > 0 {
-				m.cursor = parent.Children[i-1]
-				return
+			if child == m.cursor {
+				m.cursor.Selected = false // Deselect the current cursor node
+				if i > 0 {
+					m.cursor = parent.Children[i-1]
+				} else {
+					m.cursor = parent
+				}
+				m.cursor.Selected = true // Select the new cursor node
+				return m
 			}
 		}
 	}
+
+	return m
 }
 
-func (m *Model) moveDown() {
+func (m Model) moveDown() tea.Model {
 	if len(m.cursor.Children) > 0 && m.cursor.Open {
+		m.cursor.Selected = false // Deselect the current cursor node
 		m.cursor = m.cursor.Children[0]
-		return
+		m.cursor.Selected = true // Select the new cursor node
+		return m
 	}
+
 	parent := m.findParent(m.topics.Root, m.cursor)
 	if parent != nil {
 		for i, child := range parent.Children {
 			if child == m.cursor && i < len(parent.Children)-1 {
+				m.cursor.Selected = false // Deselect the current cursor node
 				m.cursor = parent.Children[i+1]
-				return
+				m.cursor.Selected = true // Select the new cursor node
+				return m
 			}
 		}
 	}
+
+	return m
 }
 
-func (m *Model) findParent(root, node *Node) *Node {
+func (m Model) findParent(root, node *Node) *Node {
 	if root == nil {
 		return nil
 	}
@@ -78,17 +92,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "h":
-			slog.Debug("h key pressed")
 			m.cursor.Open = false
 		case "l":
-			slog.Debug("l key pressed")
 			m.cursor.Open = true
 		case "j":
-			slog.Debug("j key pressed")
-			m.moveDown()
+			return m.moveDown(), nil
 		case "k":
-			slog.Debug("k key pressed")
-			m.moveUp()
+			return m.moveUp(), nil
 		}
 	}
 	return m, nil
