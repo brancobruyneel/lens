@@ -79,9 +79,24 @@ func (m Model) propagate(msg tea.Msg) tea.Model {
 }
 
 func (m Model) View() string {
+	border := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("225"))
+
+	topicsStyle := lipgloss.NewStyle().
+		Height(m.height - 2).
+		Width(70).
+		Padding(1).
+		Inherit(border)
+
+	historyStyle := lipgloss.NewStyle().
+		Height(m.height - 2).
+		Padding(1).
+		Inherit(border)
+
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		lipgloss.NewStyle().Height(m.height).Width(60).Padding(1).Render(m.topicTree.View()),
-		lipgloss.NewStyle().Height(m.height).Padding(1).Render(m.history.View()),
+		topicsStyle.Render(m.topicTree.View()),
+		historyStyle.Render(m.history.View()),
 	)
 }

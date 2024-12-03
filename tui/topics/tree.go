@@ -1,6 +1,7 @@
 package topics
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -25,7 +26,8 @@ func defaultStyles() styles {
 		PaddingRight(1)
 	s.leaf = s.base
 	s.selected = s.base.
-		Foreground(lipgloss.Color("82")) // Define the selected style with a different color
+		Bold(true).
+		Foreground(lipgloss.Color("212")) // Define the selected style with a different color
 	return s
 }
 
@@ -46,6 +48,7 @@ type Node struct {
 	Styles   styles
 	Open     bool
 	Selected bool
+	MsgCount int
 }
 
 func (t *Node) String() string {
@@ -56,15 +59,27 @@ func (t *Node) String() string {
 		nodeStyle = t.Styles.node
 	}
 
+	msgCount := ""
+	if t.MsgCount > 0 {
+		style := t.Styles.base.Foreground(lipgloss.Color("240")) // Faded color
+		msgCount = style.Render(fmt.Sprintf(" (%d messages)", t.MsgCount))
+	}
+
+	topicCount := ""
+	if len(t.Children) > 0 {
+		style := t.Styles.base.Foreground(lipgloss.Color("240")) // Faded color
+		topicCount = style.Render(fmt.Sprintf(" (%d topics)", len(t.Children)))
+	}
+
 	if t.Root || len(t.Children) == 0 {
-		return nodeStyle.Render(t.Name)
+		return nodeStyle.Render(t.Name) + msgCount
 	}
 
 	if t.Open {
-		return t.Styles.toggle.Render("▼") + nodeStyle.Render(t.Name)
+		return t.Styles.toggle.Render("▼") + nodeStyle.Render(t.Name) + topicCount + msgCount
 	}
 
-	return t.Styles.toggle.Render("▶") + nodeStyle.Render(t.Name)
+	return t.Styles.toggle.Render("▶") + nodeStyle.Render(t.Name) + topicCount + msgCount
 }
 
 func (t *Node) Toggle() {
@@ -77,7 +92,7 @@ type Tree struct {
 
 func NewTree(rootName string, styles styles) *Tree {
 	return &Tree{
-		Root: &Node{Name: rootName, Styles: styles, Open: true, Root: true},
+		Root: &Node{Name: rootName, Styles: styles, Open: true, Root: true, MsgCount: 0},
 	}
 }
 
@@ -94,6 +109,7 @@ func (t *Tree) Add(topic string) {
 			if child.Name == level {
 				current = child
 				found = true
+				current.MsgCount++
 				break
 			}
 		}
@@ -102,6 +118,7 @@ func (t *Tree) Add(topic string) {
 			current.Children = append(current.Children, newNode)
 			current.Open = true
 			current = newNode
+			current.MsgCount++
 		}
 	}
 }

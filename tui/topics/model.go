@@ -91,9 +91,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.topics.Add(msg.Topic())
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "h":
-			m.cursor.Open = false
-		case "l":
+		case "backspace":
+			parent := m.findParent(m.topics.Root, m.cursor)
+			if parent != nil && len(m.cursor.Children) == 0 {
+				parent.Open = false
+				m.cursor.Selected = false
+				m.cursor = parent
+				m.cursor.Selected = true
+			} else {
+				m.cursor.Open = false
+			}
+		case "enter":
 			m.cursor.Open = true
 		case "j":
 			return m.moveDown(), nil
