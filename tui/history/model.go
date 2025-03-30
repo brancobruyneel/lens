@@ -19,20 +19,18 @@ type Message struct {
 }
 
 type Model struct {
-	messages      []Message
-	filteredIndex []int
-	topic         string
-	ready         bool
-	viewport      viewport.Model
-	autoScroll    bool
+	messages   []Message
+	topic      string
+	ready      bool
+	viewport   viewport.Model
+	autoScroll bool
 }
 
 func New() Model {
 	return Model{
-		messages:      make([]Message, 0),
-		filteredIndex: make([]int, 0),
-		topic:         "#", // Default to all topics
-		autoScroll:    true,
+		messages:   make([]Message, 0),
+		topic:      "#",
+		autoScroll: true,
 	}
 }
 
@@ -70,36 +68,29 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) filterMessages() {
-	// Create a new filtered index
-	filteredIndex := make([]int, 0)
-
+func (m *Model) filter() {
+	matched := make([]int, len(m.messages))
 	for i, msg := range m.messages {
-		// If selected topic is "#" (all topics) or the message topic starts with the selected topic
 		if m.topic == "#" || strings.HasPrefix(msg.Topic, m.topic) {
-			filteredIndex = append(filteredIndex, i)
+			matched = append(matched, i)
 		}
 	}
 
-	// Update viewport content with filtered messages
-	var content strings.Builder
-	for i, idx := range filteredIndex {
+	var s strings.Builder
+	for i, idx := range matched {
 		if i > 0 {
-			content.WriteString("\n\n") // Add extra newline for better separation
+			s.WriteString("\n\n") // Add extra newline for better separation
 		}
 		// Add topic as a header for each message
-		content.WriteString("Topic: " + m.messages[idx].Topic + "\n")
-		content.WriteString(m.messages[idx].Content)
+		s.WriteString("Topic: " + m.messages[idx].Topic + "\n")
+		s.WriteString(m.messages[idx].Content)
 	}
 
-	// Create a copy of the viewport and set its content
-	viewport := m.viewport
-	viewport.SetContent(content.String())
-	viewport.GotoBottom()
+	m.viewport.SetContent(s.String())
 
-	// Return updated model
-	m.filteredIndex = filteredIndex
-	m.viewport = viewport
+	if m.autoScroll {
+		m.viewport.GotoBottom()
+	}
 }
 
 func (m *Model) handleMQTTMessage(msg paho.Message) {
@@ -115,7 +106,7 @@ func (m *Model) handleMQTTMessage(msg paho.Message) {
 		Content: out.String(),
 	})
 
-	m.filterMessages()
+	m.filter()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -127,7 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case config.TopicSelectMsg:
 		m.topic = string(msg)
-		m.filterMessages()
+		m.filter()
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
