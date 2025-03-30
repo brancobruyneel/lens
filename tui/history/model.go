@@ -69,7 +69,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) filter() {
-	matched := make([]int, len(m.messages))
+	matched := make([]int, 0)
 	for i, msg := range m.messages {
 		if m.topic == "#" || strings.HasPrefix(msg.Topic, m.topic) {
 			matched = append(matched, i)
