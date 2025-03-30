@@ -8,6 +8,7 @@ import (
 	"github.com/brancobruyneel/lens/mqtt"
 	"github.com/brancobruyneel/lens/tui"
 	tea "github.com/charmbracelet/bubbletea"
+	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
 func main() {
@@ -22,14 +23,15 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
-	serverURL := "mqtt://127.0.0.1:1883"
-	mqttClient, err := mqtt.New(serverURL, "lens")
-	if err != nil {
-		log.Fatalf("Failed to connect to MQTT broker: %v", err)
-	}
+	brokerURI := "mqtt://127.0.0.1:1883"
+	opts := paho.NewClientOptions().
+		SetClientID("mqtt-lens").
+		AddBroker(brokerURI)
+
+	mqttClient := mqtt.New(opts)
 	defer mqttClient.Disconnect()
 
-	model := tui.NewModel(mqttClient, serverURL)
+	model := tui.NewModel(mqttClient, brokerURI)
 
 	if _, err := tea.NewProgram(model, tea.WithAltScreen()).Run(); err != nil {
 		log.Fatalf("Failed to start TUI: %v", err)
