@@ -63,16 +63,10 @@ func (m Model) waitForMsg() tea.Cmd {
 }
 
 func (m Model) Init() tea.Cmd {
-	// Send initial topic selection message (all topics)
-	initialTopicSelect := func() tea.Msg {
-		return config.TopicSelectMsg("#")
-	}
-
 	return tea.Batch(
 		m.connect(),
 		m.waitForMsg(),
 		m.switchView(m.active),
-		initialTopicSelect,
 	)
 }
 
@@ -112,9 +106,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.propagate(msg)
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
-	case config.View:
-		return m.propagate(msg)
-	case config.TopicSelectMsg:
+	case config.TopicFilterMsg:
 		return m.propagate(msg)
 	case paho.Message:
 		m.history, historyCmd = m.history.Update(msg)
@@ -124,7 +116,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		slog.Error("received unexpected error", slog.Any("error", msg))
 	}
 
-	return m, nil
+	return m.propagate(m)
 }
 
 // Propagate tea.Msg to all child models.

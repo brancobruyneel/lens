@@ -27,7 +27,10 @@ func defaultStyles() styles {
 	s.leaf = s.base
 	s.selected = s.base.
 		Bold(true).
-		Foreground(lipgloss.Color("212")) // Define the selected style with a different color
+		Foreground(lipgloss.Color("212"))
+	s.filtered = s.base.
+		Bold(true).
+		Foreground(lipgloss.Color("86"))
 	return s
 }
 
@@ -38,48 +41,57 @@ type styles struct {
 	node       lipgloss.Style
 	toggle     lipgloss.Style
 	leaf       lipgloss.Style
-	selected   lipgloss.Style // Add the selected style
+	selected   lipgloss.Style
+	filtered   lipgloss.Style
 }
 
 type Node struct {
 	Root     bool
 	Name     string
 	Children []*Node
+	Parent   *Node
 	Styles   styles
 	Open     bool
 	Selected bool
+	Filtered bool
 	MsgCount int
+	childMap map[string]*Node // For quick lookups
 }
 
 func (t *Node) String() string {
 	var nodeStyle lipgloss.Style
+
 	if t.Selected {
 		nodeStyle = t.Styles.selected
+	} else if t.Filtered {
+		nodeStyle = t.Styles.filtered
 	} else {
 		nodeStyle = t.Styles.node
 	}
 
+	countStyle := t.Styles.base.Foreground(lipgloss.Color("240"))
+
 	msgCount := ""
 	if t.MsgCount > 0 {
-		style := t.Styles.base.Foreground(lipgloss.Color("240")) // Faded color
-		msgCount = style.Render(fmt.Sprintf(" (%d messages)", t.MsgCount))
+		msgCount = countStyle.Render(fmt.Sprintf(" (%d messages)", t.MsgCount))
 	}
 
 	topicCount := ""
 	if len(t.Children) > 0 {
-		style := t.Styles.base.Foreground(lipgloss.Color("240")) // Faded color
-		topicCount = style.Render(fmt.Sprintf(" (%d topics)", len(t.Children)))
+		topicCount = countStyle.Render(fmt.Sprintf(" (%d topics)", len(t.Children)))
 	}
 
+	// Root or leaf nodes don't show toggle indicators
 	if t.Root || len(t.Children) == 0 {
 		return nodeStyle.Render(t.Name) + msgCount
 	}
 
+	toggle := "▶"
 	if t.Open {
-		return t.Styles.toggle.Render("▼") + nodeStyle.Render(t.Name) + topicCount + msgCount
+		toggle = "▼"
 	}
 
-	return t.Styles.toggle.Render("▶") + nodeStyle.Render(t.Name) + topicCount + msgCount
+	return t.Styles.toggle.Render(toggle) + nodeStyle.Render(t.Name) + topicCount + msgCount
 }
 
 func (t *Node) Toggle() {
@@ -92,7 +104,14 @@ type Tree struct {
 
 func NewTree(rootName string, styles styles) *Tree {
 	return &Tree{
-		Root: &Node{Name: rootName, Styles: styles, Open: true, Root: true, MsgCount: 0},
+		Root: &Node{
+			Name:     rootName,
+			Styles:   styles,
+			Open:     true,
+			Root:     true,
+			MsgCount: 0,
+			childMap: make(map[string]*Node),
+		},
 	}
 }
 
@@ -104,21 +123,28 @@ func (t *Tree) Add(topic string) {
 		if level == "" {
 			continue
 		}
-		found := false
-		for _, child := range current.Children {
-			if child.Name == level {
-				current = child
-				found = true
-				current.MsgCount++
-				break
-			}
-		}
-		if !found {
-			newNode := &Node{Name: level, Styles: current.Styles, Open: false}
-			current.Children = append(current.Children, newNode)
-			current.Open = true
-			current = newNode
+
+		// Fast lookup using map
+		if child, exists := current.childMap[level]; exists {
+			current = child
 			current.MsgCount++
+		} else {
+			newNode := &Node{
+				Name:     level,
+				Styles:   current.Styles,
+				Open:     false,
+				Parent:   current,
+				childMap: make(map[string]*Node),
+				MsgCount: 1, // Initialize with 1 since this is a new message
+			}
+
+			// Add to parent's children and map
+			current.Children = append(current.Children, newNode)
+			current.childMap[level] = newNode
+			current.Open = true
+
+			// Move to the new node
+			current = newNode
 		}
 	}
 }
@@ -137,4 +163,76 @@ func (t *Tree) Render() *tree.Tree {
 		return tr
 	}
 	return convert(t.Root)
+}
+
+func (t *Tree) FindDeepestLastChild(node *Node) *Node {
+	current := node
+	for len(current.Children) > 0 && current.Open {
+		current = current.Children[len(current.Children)-1]
+	}
+	return current
+}
+
+func (t *Tree) Path(node *Node) string {
+	if node == t.Root {
+		return "#"
+	}
+
+	var path []string
+	current := node
+	for current != t.Root && current != nil {
+		path = append([]string{current.Name}, path...)
+		current = current.Parent
+	}
+
+	return "/" + strings.Join(path, "/")
+}
+
+func (t *Tree) FilterTopic(topic string) {
+	t.clearFilters(t.Root)
+
+	if topic == "#" {
+		return
+	}
+
+	t.markFilteredNode(topic)
+}
+
+func (t *Tree) clearFilters(node *Node) {
+	node.Filtered = false
+	for _, child := range node.Children {
+		t.clearFilters(child)
+	}
+}
+
+func (t *Tree) markFilteredNode(topic string) {
+	tp := strings.TrimPrefix(topic, "/")
+	levels := strings.Split(tp, "/")
+
+	current := t.Root
+
+	for _, level := range levels {
+		if level == "" {
+			continue
+		}
+
+		// Look for the child with this name
+		found := false
+		for _, child := range current.Children {
+			if child.Name == level {
+				// Only mark the final node as filtered
+				if level == levels[len(levels)-1] {
+					child.Filtered = true
+				}
+				child.Open = true // Ensure the node is open
+				current = child
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return
+		}
+	}
 }

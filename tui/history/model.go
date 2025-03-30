@@ -45,23 +45,24 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.autoScroll {
 			m.viewport.GotoBottom()
 		}
+		return m, nil
+	}
+
+	// All other navigation keys disable auto-scroll
+	m.autoScroll = false
+
+	switch msg.String() {
 	case "j":
-		m.autoScroll = false
 		m.viewport.LineDown(1)
 	case "k":
-		m.autoScroll = false
 		m.viewport.LineUp(1)
 	case "u":
-		m.autoScroll = false
 		m.viewport.ViewUp()
 	case "d":
-		m.autoScroll = false
 		m.viewport.ViewDown()
 	case "gg":
-		m.autoScroll = false
 		m.viewport.GotoTop()
 	case "G":
-		m.autoScroll = false
 		m.viewport.GotoBottom()
 	}
 
@@ -69,21 +70,18 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) filter() {
-	matched := make([]int, 0)
-	for i, msg := range m.messages {
-		if m.topic == "#" || strings.HasPrefix(msg.Topic, m.topic) {
-			matched = append(matched, i)
-		}
-	}
-
 	var s strings.Builder
-	for i, idx := range matched {
-		if i > 0 {
-			s.WriteString("\n\n") // Add extra newline for better separation
+	for _, msg := range m.messages {
+		if m.topic != "#" && !strings.HasPrefix(msg.Topic, m.topic) {
+			continue
 		}
-		// Add topic as a header for each message
-		s.WriteString("Topic: " + m.messages[idx].Topic + "\n")
-		s.WriteString(m.messages[idx].Content)
+
+		if s.Len() > 0 {
+			s.WriteString("\n\n")
+		}
+
+		s.WriteString("Topic: " + msg.Topic + "\n")
+		s.WriteString(msg.Content)
 	}
 
 	m.viewport.SetContent(s.String())
@@ -116,7 +114,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case paho.Message:
 		m.handleMQTTMessage(msg)
 		return m, nil
-	case config.TopicSelectMsg:
+	case config.TopicFilterMsg:
 		m.topic = string(msg)
 		m.filter()
 		return m, nil
