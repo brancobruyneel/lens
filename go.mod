@@ -1,6 +1,7 @@
 module github.com/brancobruyneel/lens
 
 go 1.24.1
+
 require (
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/charmbracelet/bubbletea v1.3.4
@@ -21,7 +22,7 @@ require (
 )
 
 require (
-	github.com/charmbracelet/bubbles v0.20.0
+	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.5.0
