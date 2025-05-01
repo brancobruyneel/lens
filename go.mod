@@ -3,7 +3,7 @@ module github.com/brancobruyneel/lens
 go 1.24.1
 
 require (
-	github.com/alecthomas/chroma/v2 v2.17.0
+	github.com/alecthomas/chroma/v2 v2.17.2
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.1.0
 )
