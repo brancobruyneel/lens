@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/alecthomas/chroma/v2 v2.20.0
-	github.com/charmbracelet/bubbletea v1.3.6
+	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 )
 
@@ -23,7 +23,7 @@ require (
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/x/ansi v0.9.3 // indirect
+	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
